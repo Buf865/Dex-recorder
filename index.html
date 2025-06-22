@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,40 +47,40 @@
       font-size: 1.1em;
     }
     #thankyou {
-      display: none;
-      font-size: 1.3em;
       margin-top: 20px;
-      color: #a2fca2;
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #9cffb5;
+      display: none;
+    }
+    input {
+      padding: 10px;
+      margin: 10px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      width: 220px;
     }
   </style>
 </head>
 <body>
   <h1>🎤 Dex Wake Word Collection</h1>
   <p class="info">
-    Please help improve Dex by recording your voice saying <strong>"Hey Dex"</strong> <br />
-    Say it <strong>clearly</strong>, avoid background noise, and repeat it <strong>10 times</strong>.
+    Please say <strong>"Hey Dex"</strong> clearly 10 times. <br/>
+    Avoid background noise. You can redo any mistake.
   </p>
-
+  <input id="username" placeholder="Enter your name" /><br>
   <button onclick="startRecording()">🎙 Record</button>
   <button onclick="redoLast()">↩️ Redo Last</button>
-  <button onclick="downloadAll()">📦 Download ZIP</button>
-
   <div id="status">Recording 0 of 10</div>
-  <div id="thankyou">🎉 Thank you for contributing to Dex!</div>
+  <div id="thankyou">🎉 Thank you for your contribution!</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script>
     let recordings = [];
     let recorder;
     let audioChunks = [];
     let count = 0;
     let stream;
-    let username = "";
-
-    window.onload = () => {
-      username = prompt("Enter your name:")?.trim().replace(/\s+/g, "_") || "User";
-      document.getElementById("status").innerText = `Recording 0 of 10`;
-    };
 
     async function initMic() {
       if (!stream) {
@@ -94,10 +95,9 @@
     }
 
     async function startRecording() {
-      if (count >= 10) {
-        alert("✅ You've already recorded 10 samples.");
-        return;
-      }
+      const name = document.getElementById("username").value.trim();
+      if (!name) return alert("Please enter your name first.");
+      if (count >= 10) return alert("✅ You've completed all 10 recordings.");
 
       const mic = await initMic();
       recorder = new MediaRecorder(mic);
@@ -106,14 +106,15 @@
       recorder.ondataavailable = (e) => audioChunks.push(e.data);
       recorder.onstop = () => {
         const blob = new Blob(audioChunks, { type: 'audio/wav' });
-        recordings[count] = blob;
+        recordings[count] = { blob, name };
         count++;
         document.getElementById("status").innerText = `Recording ${count} of 10`;
+        if (count === 10) uploadAll();
       };
 
       recorder.start();
       document.getElementById("status").innerText = `Recording ${count + 1} of 10... Speak now!`;
-      setTimeout(() => recorder.stop(), 2000);
+      setTimeout(() => recorder.stop(), 2500);
     }
 
     function redoLast() {
@@ -124,26 +125,17 @@
       startRecording();
     }
 
-    function downloadAll() {
-      if (recordings.length !== 10) {
-        alert("⏳ Please complete all 10 recordings before downloading.");
-        return;
+    async function uploadAll() {
+      const name = document.getElementById("username").value.trim();
+      for (let i = 0; i < recordings.length; i++) {
+        const formData = new FormData();
+        formData.append("file", recordings[i].blob, `${name}_${i + 1}.wav`);
+        await fetch("http://localhost:3000/upload", {
+          method: "POST",
+          body: formData,
+        });
       }
-
-      const zip = new JSZip();
-      recordings.forEach((blob, i) => {
-        zip.file(`${username}_${i + 1}.wav`, blob);
-      });
-
-      zip.generateAsync({ type: "blob" }).then((content) => {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(content);
-        a.download = `${username}_DexRecordings.zip`;
-        a.click();
-
-        document.getElementById("thankyou").style.display = "block";
-        document.getElementById("status").innerText = "✅ All files downloaded!";
-      });
+      document.getElementById("thankyou").style.display = "block";
     }
   </script>
 </body>
