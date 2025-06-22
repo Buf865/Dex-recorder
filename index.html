@@ -65,7 +65,7 @@
 
   <input type="text" id="username" placeholder="Enter your name" />
   <br>
-  <button onclick="startRecording()">🎙️ Record</button>
+  <button onclick="startRecording()">🎤 Record</button>
   <button onclick="redoLast()">↩️ Redo Last</button>
   <button id="doneBtn" onclick="uploadToServer()">✅ Done</button>
 
@@ -98,15 +98,15 @@
       recorder.onstop = () => {
         const blob = new Blob(audioChunks, { type: 'audio/wav' });
         recordings[count] = blob;
+        count++;
         updateStatus();
       };
 
       recorder.start();
-      updateStatus(`🎙️ Recording ${count + 1}... Say "Hey Dex"`);
+      updateStatus(`🎤 Recording ${count + 1}... Say \"Hey Dex\"`);
       setTimeout(() => {
         recorder.stop();
-        count++;
-      }, 2500); // 2.5 seconds
+      }, 2500);
     }
 
     function redoLast() {
@@ -139,15 +139,20 @@
         formData.append('files', blob, `${name}_${i + 1}.wav`);
       });
 
-      const res = await fetch('http://localhost:3000/upload', {
-        method: 'POST',
-        body: formData
-      });
+      try {
+        const res = await fetch('http://localhost:3000/upload', {
+          method: 'POST',
+          body: formData
+        });
 
-      if (res.ok) {
-        document.getElementById("thankyou").style.display = "block";
-      } else {
-        alert("❌ Upload failed. Please try again.");
+        if (res.ok) {
+          document.getElementById("thankyou").style.display = "block";
+        } else {
+          alert("❌ Upload failed. Please try again.");
+        }
+      } catch (err) {
+        alert("❌ Could not connect to server.");
+        console.error(err);
       }
     }
   </script>
