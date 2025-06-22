@@ -36,10 +36,14 @@
       border-radius: 8px;
       cursor: pointer;
       margin: 10px;
-      transition: background 0.3s;
+      transition: background 0.3s, box-shadow 0.3s;
     }
     button:hover {
       background: #00d4e0;
+    }
+    .glow {
+      box-shadow: 0 0 15px 5px rgba(0, 242, 255, 0.8);
+      background: #00f2ff;
     }
     #status {
       margin-top: 20px;
@@ -66,7 +70,7 @@
   <p>Please say <strong>"Hey Dex"</strong> clearly when prompted. Avoid background noise for best results.<br/>You'll record 10 samples. You can redo if needed.</p>
 
   <input id="username" placeholder="Enter your name" /><br>
-  <button onclick="startRecording()">🎙️ Record</button>
+  <button id="recordBtn" onclick="startRecording()">🎙️ Record</button>
   <button onclick="redoLast()">🔁 Redo Last</button>
   <button onclick="downloadZip()">📦 Download ZIP</button>
   <div id="status">Recording 0 of 10</div>
@@ -98,6 +102,9 @@
         return;
       }
 
+      const recordBtn = document.getElementById("recordBtn");
+      recordBtn.classList.add("glow");
+
       const stream = await initMic();
       mediaRecorder = new MediaRecorder(stream);
       chunks = [];
@@ -107,7 +114,8 @@
         const blob = new Blob(chunks, { type: 'audio/wav' });
         recordings[counter] = { blob, name };
         counter++;
-        updateStatus();
+        updateStatus(); // show ✔️ tick if successful
+        recordBtn.classList.remove("glow");
       };
 
       mediaRecorder.start();
@@ -126,10 +134,11 @@
     }
 
     function updateStatus(msg) {
+      const status = document.getElementById("status");
       if (msg) {
-        document.getElementById("status").textContent = msg;
+        status.textContent = msg;
       } else {
-        document.getElementById("status").textContent = `Recording ${counter} of 10`;
+        status.innerHTML = `Recording ${counter} of 10 ✔️`;
       }
     }
 
@@ -152,7 +161,6 @@
         a.download = `${name}_dex_samples.zip`;
         a.click();
 
-        // ✅ Show thank you message
         document.getElementById("thankYouMsg").style.display = "block";
       });
     }
