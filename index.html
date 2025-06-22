@@ -45,6 +45,12 @@
       margin-top: 10px;
       font-size: 1.1em;
     }
+    #thankyou {
+      display: none;
+      font-size: 1.3em;
+      margin-top: 20px;
+      color: #a2fca2;
+    }
   </style>
 </head>
 <body>
@@ -59,15 +65,21 @@
   <button onclick="downloadAll()">📦 Download ZIP</button>
 
   <div id="status">Recording 0 of 10</div>
+  <div id="thankyou">🎉 Thank you for contributing to Dex!</div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
   <script>
     let recordings = [];
     let recorder;
     let audioChunks = [];
     let count = 0;
     let stream;
+    let username = "";
+
+    window.onload = () => {
+      username = prompt("Enter your name:")?.trim().replace(/\s+/g, "_") || "User";
+      document.getElementById("status").innerText = `Recording 0 of 10`;
+    };
 
     async function initMic() {
       if (!stream) {
@@ -107,6 +119,8 @@
     function redoLast() {
       if (count === 0) return;
       count--;
+      recordings[count] = null;
+      document.getElementById("status").innerText = `Redoing recording ${count + 1}`;
       startRecording();
     }
 
@@ -118,14 +132,17 @@
 
       const zip = new JSZip();
       recordings.forEach((blob, i) => {
-        zip.file(`${i + 1}.wav`, blob);
+        zip.file(`${username}_${i + 1}.wav`, blob);
       });
 
       zip.generateAsync({ type: "blob" }).then((content) => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(content);
-        a.download = "Dex-HeyDex-Samples.zip";
+        a.download = `${username}_DexRecordings.zip`;
         a.click();
+
+        document.getElementById("thankyou").style.display = "block";
+        document.getElementById("status").innerText = "✅ All files downloaded!";
       });
     }
   </script>
