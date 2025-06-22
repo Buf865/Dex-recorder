@@ -2,158 +2,159 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dex Wake Word Recorder</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: linear-gradient(to right, #141e30, #243b55);
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0d0d2b;
       color: white;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 30px;
+      justify-content: center;
+      height: 100vh;
       text-align: center;
     }
     h1 {
-      margin-bottom: 10px;
+      font-size: 2em;
       color: #00f2ff;
     }
-    input, button {
-      padding: 10px;
+    p {
+      max-width: 80%;
       font-size: 1em;
-      margin: 10px;
-      border: none;
-      border-radius: 6px;
-    }
-    input {
-      width: 220px;
+      color: #ccc;
     }
     button {
-      background-color: #00bcd4;
-      color: white;
+      background: #00f2ff;
+      border: none;
+      color: #000;
+      padding: 12px 20px;
+      font-size: 1em;
+      border-radius: 8px;
       cursor: pointer;
+      margin: 10px;
+      transition: background 0.3s;
     }
     button:hover {
-      background-color: #0097a7;
+      background: #00d4e0;
     }
-    .recording-box {
+    #status {
       margin-top: 20px;
-      font-size: 1.1em;
-    }
-    .tick {
-      color: #8bc34a;
       font-weight: bold;
-      margin-left: 10px;
     }
-    #doneBtn {
-      background-color: #4caf50;
+    input {
+      padding: 10px;
+      font-size: 1em;
+      border-radius: 5px;
+      border: none;
+      margin-top: 10px;
+      width: 250px;
+    }
+    #thankYouMsg {
       margin-top: 20px;
-    }
-    #thankyou {
-      color: #a2fca2;
       font-size: 1.2em;
-      margin-top: 20px;
+      color: #90ee90;
       display: none;
     }
   </style>
 </head>
 <body>
-  <h1>🎤 Dex Wake Word Collection</h1>
-  <p>Please say <strong>"Hey Dex"</strong> clearly, 10 times.<br>
-     Avoid background noise for accurate training.</p>
+  <h1>🎙️ Dex Wake Word Collection</h1>
+  <p>Please say <strong>"Hey Dex"</strong> clearly when prompted. Avoid background noise for best results.<br/>You'll record 10 samples. You can redo if needed.</p>
 
-  <input type="text" id="username" placeholder="Enter your name" />
-  <br>
-  <button onclick="startRecording()">🎤 Record</button>
-  <button onclick="redoLast()">↩️ Redo Last</button>
-  <button id="doneBtn" onclick="uploadToServer()">✅ Done</button>
-
+  <input id="username" placeholder="Enter your name" /><br>
+  <button onclick="startRecording()">🎙️ Record</button>
+  <button onclick="redoLast()">🔁 Redo Last</button>
+  <button onclick="downloadZip()">📦 Download ZIP</button>
   <div id="status">Recording 0 of 10</div>
-  <div id="thankyou">🎉 Thank you for contributing to Dex!</div>
+  <div id="thankYouMsg">🎉 Thank you for contributing to Dex!</div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.0/dist/jszip.min.js"></script>
   <script>
     let recordings = [];
-    let count = 0;
+    let counter = 0;
+    let mediaRecorder;
+    let chunks = [];
     let stream;
-    let recorder;
-    let audioChunks = [];
 
     async function initMic() {
       if (!stream) {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       }
+      return stream;
     }
 
     async function startRecording() {
       const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Please enter your name first.");
-      if (count >= 10) return alert("✅ All 10 recordings are done.");
+      if (!name) {
+        alert("Please enter your name first.");
+        return;
+      }
+      if (counter >= 10) {
+        alert("You have completed all 10 recordings.");
+        return;
+      }
 
-      await initMic();
-      audioChunks = [];
-      recorder = new MediaRecorder(stream);
+      const stream = await initMic();
+      mediaRecorder = new MediaRecorder(stream);
+      chunks = [];
 
-      recorder.ondataavailable = e => audioChunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(audioChunks, { type: 'audio/wav' });
-        recordings[count] = blob;
-        count++;
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        recordings[counter] = { blob, name };
+        counter++;
         updateStatus();
       };
 
-      recorder.start();
-      updateStatus(`🎤 Recording ${count + 1}... Say \"Hey Dex\"`);
+      mediaRecorder.start();
+      updateStatus("Recording... Say \"Hey Dex\" now.");
+
       setTimeout(() => {
-        recorder.stop();
+        mediaRecorder.stop();
       }, 2500);
     }
 
     function redoLast() {
-      if (count === 0) return;
-      count--;
-      recordings[count] = null;
-      updateStatus(`↩️ Redoing recording ${count + 1}...`);
+      if (counter === 0) return;
+      counter--;
+      recordings[counter] = null;
+      updateStatus("Redoing recording " + (counter + 1));
     }
 
-    function updateStatus(text) {
-      const s = document.getElementById("status");
-      if (text) {
-        s.textContent = text;
+    function updateStatus(msg) {
+      if (msg) {
+        document.getElementById("status").textContent = msg;
       } else {
-        let ticks = '';
-        for (let i = 0; i < 10; i++) {
-          ticks += i < count ? `✅ ` : '⭕ ';
-        }
-        s.textContent = `Recording ${count} of 10\n ${ticks}`;
+        document.getElementById("status").textContent = `Recording ${counter} of 10`;
       }
     }
 
-    async function uploadToServer() {
-      const name = document.getElementById("username").value.trim();
-      if (!name) return alert("Please enter your name first.");
-      if (recordings.length < 10) return alert("You must complete all 10 recordings.");
+    function downloadZip() {
+      if (recordings.length < 10) {
+        alert("Please complete all 10 recordings first.");
+        return;
+      }
 
-      const formData = new FormData();
-      recordings.forEach((blob, i) => {
-        formData.append('files', blob, `${name}_${i + 1}.wav`);
+      const zip = new JSZip();
+      const name = document.getElementById("username").value.trim();
+
+      recordings.forEach((rec, i) => {
+        zip.file(`${name}_${i + 1}.wav`, rec.blob);
       });
 
-      try {
-        const res = await fetch('http://localhost:3000/upload', {
-          method: 'POST',
-          body: formData
-        });
+      zip.generateAsync({ type: "blob" }).then(content => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = `${name}_dex_samples.zip`;
+        a.click();
 
-        if (res.ok) {
-          document.getElementById("thankyou").style.display = "block";
-        } else {
-          alert("❌ Upload failed. Please try again.");
-        }
-      } catch (err) {
-        alert("❌ Could not connect to server.");
-        console.error(err);
-      }
+        // ✅ Show thank you message
+        document.getElementById("thankYouMsg").style.display = "block";
+      });
     }
   </script>
 </body>
